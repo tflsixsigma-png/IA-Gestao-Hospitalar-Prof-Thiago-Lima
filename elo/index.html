@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ELO · Diagnóstico de IA Hospitalar</title>
+<style>html{color-scheme:light dark}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800;900&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: app shell with left step rail (the 6-stage chain as the navigation itself) and a working pane; verdict panel at the end. High contrast for projection. */
+:root{
+  --bg:#ffffff; --bg2:#eef2f7; --ink:#0a1626; --ink2:#2c3a4d; --line:#9fb0c4;
+  --accent:#0040a8; --accent-ink:#ffffff; --hi:#ffd23f; --barhi:#ffd23f;
+  --pos:#0d6b2e; --pn:#3f8f2a; --nul:#4a5566; --neg:#b3170e; --mix:#9a5200;
+  --pos-bg:#d9f0df; --nul-bg:#e3e7ee; --neg-bg:#fbe0dd; --mix-bg:#fbebd5;
+  --display:"Archivo","Arial Narrow",Arial,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#050b14; --bg2:#111c2c; --ink:#f4f7fb; --ink2:#c9d4e2; --line:#4b5d75;
+  --accent:#7fb2ff; --accent-ink:#04101f; --hi:#ffd23f; --barhi:#0040a8;
+  --pos:#5fd38a; --pn:#a6e36b; --nul:#aab5c5; --neg:#ff7b70; --mix:#ffb35c;
+  --pos-bg:#0f3320; --nul-bg:#1d2736; --neg-bg:#3d1411; --mix-bg:#3a2509;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#050b14; --bg2:#111c2c; --ink:#f4f7fb; --ink2:#c9d4e2; --line:#4b5d75;
+  --accent:#7fb2ff; --accent-ink:#04101f; --hi:#ffd23f; --barhi:#0040a8;
+  --pos:#5fd38a; --pn:#a6e36b; --nul:#aab5c5; --neg:#ff7b70; --mix:#ffb35c;
+  --pos-bg:#0f3320; --nul-bg:#1d2736; --neg-bg:#3d1411; --mix-bg:#3a2509;
+  color-scheme:dark}
+*{box-sizing:border-box}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;margin:0}
+h1,h2,h3,h4{font-family:var(--display);line-height:1.1;text-wrap:balance;margin:0}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:.74rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.lbl{font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;color:var(--ink2);display:block;margin-bottom:4px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border:2px solid var(--ink);background:var(--bg);color:var(--ink);font-weight:600;text-decoration:none;border-radius:4px;font-size:.92rem;cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:hover{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.sm{padding:5px 10px;font-size:.82rem}
+.pill{display:inline-block;font-size:.76rem;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap;border:2px solid currentColor}
+.d-P{color:var(--pos);background:var(--pos-bg)}.d-PN{color:var(--pn);background:var(--pos-bg)}.d-N{color:var(--nul);background:var(--nul-bg)}.d-PNg{color:var(--mix);background:var(--mix-bg)}.d-NN{color:var(--neg);background:var(--neg-bg)}
+
+/* shell */
+.top{background:var(--ink);color:var(--bg);padding:10px clamp(16px,3vw,28px);display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:env(safe-area-inset-top,0px);z-index:10}
+.top .home{color:var(--barhi);text-decoration:none;font-family:var(--mono);font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border:2px solid var(--barhi);padding:5px 10px;border-radius:4px;white-space:nowrap}.top .home:hover{background:var(--barhi);color:var(--ink)}
+.top .brand{font-family:var(--display);font-weight:900;font-size:1.05rem}
+.top .brand small{display:block;font-family:var(--mono);font-weight:500;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--barhi)}
+.top .sol{font-size:.9rem;margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.top .sol b{font-family:var(--display)}
+.modeseg{display:inline-flex;border:2px solid var(--bg);border-radius:4px;overflow:hidden}
+.modeseg button{background:transparent;color:var(--bg);border:0;padding:5px 10px;font-size:.8rem;font-weight:600;cursor:pointer}
+.modeseg button[aria-pressed="true"]{background:var(--hi);color:#0a1626}
+.shell{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:calc(100vh - 60px)}
+@media (max-width:860px){.shell{grid-template-columns:1fr}}
+.rail{border-right:2px solid var(--ink);background:var(--bg2);padding:18px 14px;display:flex;flex-direction:column;gap:6px}
+@media (max-width:860px){.rail{border-right:0;border-bottom:2px solid var(--ink);flex-direction:row;overflow-x:auto;padding:10px 16px}}
+.step{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:center;padding:9px 10px;border:2px solid transparent;border-radius:6px;background:transparent;text-align:left;cursor:pointer;color:var(--ink);min-width:0}
+@media (max-width:860px){.step{min-width:190px}}
+.step .k{width:30px;height:30px;border-radius:50%;border:2px solid var(--ink);display:grid;place-items:center;font-family:var(--mono);font-weight:600;font-size:.82rem;background:var(--bg)}
+.step .t{font-weight:600;font-size:.9rem;line-height:1.2}
+.step .s{font-size:.74rem;color:var(--ink2);font-family:var(--mono)}
+.step:hover{border-color:var(--line)}
+.step[aria-current="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.step[aria-current="true"] .s{color:var(--bg)}
+.step.yes .k{background:var(--pos);border-color:var(--pos);color:#fff}
+.step.partly .k{background:var(--mix);border-color:var(--mix);color:#fff}
+.step.no .k{background:var(--neg);border-color:var(--neg);color:#fff}
+.step.unk .k{border-style:dashed}
+.rail .sep{border-top:2px solid var(--line);margin:6px 0}
+@media (max-width:860px){.rail .sep{display:none}}
+.pane{padding:clamp(18px,3vw,36px);max-width:980px;min-width:0}
+.pane h2{font-size:clamp(1.5rem,3vw,2.1rem);font-weight:800;letter-spacing:-.01em;margin:4px 0 6px}
+.pane .intro{color:var(--ink2);max-width:70ch;margin-bottom:22px}
+.card{border:2px solid var(--ink);border-radius:6px;padding:18px;background:var(--bg);margin-bottom:16px;min-width:0}
+.card h3{font-size:1.1rem;font-weight:800;margin-bottom:10px}
+.field{display:grid;gap:4px;margin-bottom:12px;min-width:0}
+.field input,.field select,.field textarea{padding:8px 10px;border:2px solid var(--ink);border-radius:4px;background:var(--bg);color:var(--ink);width:100%;max-width:100%}
+.field textarea{min-height:70px;resize:vertical}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{border:2px solid var(--ink);background:var(--bg);color:var(--ink);padding:6px 13px;border-radius:4px;font-size:.88rem;font-weight:600;cursor:pointer}
+.seg button[aria-pressed="true"][data-v="yes"]{background:var(--pos);border-color:var(--pos);color:#fff}
+.seg button[aria-pressed="true"][data-v="partly"]{background:var(--mix);border-color:var(--mix);color:#fff}
+.seg button[aria-pressed="true"][data-v="no"]{background:var(--neg);border-color:var(--neg);color:#fff}
+.seg button[aria-pressed="true"][data-v="unk"]{background:var(--nul);border-color:var(--nul);color:#fff}
+.q{font-family:var(--display);font-weight:800;font-size:1.25rem;line-height:1.2;margin-bottom:10px}
+.checks{display:grid;gap:8px;margin:10px 0 14px}
+.checks label{display:grid;grid-template-columns:22px 1fr;gap:10px;align-items:start;font-size:.95rem;cursor:pointer}
+.checks input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--accent)}
+.hint{font-size:.88rem;color:var(--ink2);border-left:4px solid var(--neg);padding:8px 12px;background:var(--neg-bg);border-radius:0 4px 4px 0;margin-top:8px}
+.hint b{color:var(--neg)}
+.callout{border:2px solid var(--accent);background:var(--bg2);padding:12px 14px;border-radius:6px;font-size:.92rem;margin-top:10px}
+.evlist{display:grid;gap:8px}
+.ev{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto auto;gap:8px;align-items:center;border:2px solid var(--line);border-radius:4px;padding:8px 10px}
+@media (max-width:640px){.ev{grid-template-columns:1fr}}
+.ev input,.ev select{padding:6px 8px;border:2px solid var(--ink);border-radius:4px;background:var(--bg);min-width:0;width:100%}
+.ev .x{border:2px solid var(--ink);background:var(--bg);border-radius:4px;width:32px;height:32px;cursor:pointer;font-weight:700}
+.evsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
+.evsum div{border-top:5px solid var(--ink);padding-top:6px}
+.evsum b{font-family:var(--display);font-size:1.8rem;font-weight:900;line-height:1;display:block}
+.evsum span{font-size:.82rem;color:var(--ink2)}
+.evsum .bad{border-color:var(--neg)}.evsum .bad b{color:var(--neg)}
+.evsum .good{border-color:var(--pos)}.evsum .good b{color:var(--pos)}
+.stack{display:grid;gap:8px;margin:10px 0}
+.srow{display:grid;grid-template-columns:minmax(110px,1fr) minmax(0,2fr);gap:10px;align-items:center;font-size:.85rem}
+.sbar{display:flex;height:24px;border:2px solid var(--ink);border-radius:3px;overflow:hidden}
+.sbar span{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:.78rem;color:#fff}
+.sbar .p{background:var(--pos)}.sbar .pn{background:var(--pn);color:#0a1626}.sbar .nm{background:var(--nul)}
+.tbl{overflow-x:auto;border:2px solid var(--ink);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--ink);color:var(--bg);font-family:var(--mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.navbar{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:8px}
+/* report */
+.verdict{border:3px solid var(--ink);border-radius:8px;padding:22px;background:var(--bg);margin-bottom:16px}
+.verdict.break{border-color:var(--neg);background:var(--neg-bg)}
+.verdict.ok{border-color:var(--pos);background:var(--pos-bg)}
+.verdict.gap{border-color:var(--mix);background:var(--mix-bg)}
+.verdict h3{font-size:1.5rem;font-weight:900;margin-bottom:8px}
+.chain{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:14px 0}
+@media (max-width:720px){.chain{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.chain div{border:2px solid var(--ink);border-radius:5px;padding:8px;font-size:.78rem;line-height:1.2;display:grid;gap:4px;background:var(--bg)}
+.chain div b{font-family:var(--mono);font-size:.9rem}
+.chain .yes{border-color:var(--pos);background:var(--pos-bg)}.chain .partly{border-color:var(--mix);background:var(--mix-bg)}.chain .no{border-color:var(--neg);background:var(--neg-bg)}.chain .unk{border-style:dashed}.chain .after{opacity:.4}
+.rep{font-family:var(--mono);font-size:.82rem;white-space:pre-wrap;border:2px solid var(--line);border-radius:6px;padding:14px;background:var(--bg2);max-height:420px;overflow:auto}
+.flash{font-size:.85rem;color:var(--pos);font-weight:600}
+.demo{font-size:.85rem;color:var(--ink2)}
+footer{padding:20px clamp(16px,3vw,36px);font-size:.82rem;color:var(--ink2);border-top:2px solid var(--line)}
+</style>
+</head>
+<body>
+
+
+<div class="top">
+    <div class="brand">ELO<small>Evidência · Lógica organizacional · Operação — diagnóstico de implementações de IA em hospitais</small></div>
+  <div class="sol"><span id="solname"><b>Novo diagnóstico</b></span>
+    <div class="modeseg" role="group" aria-label="Modo"><button id="m-ante" aria-pressed="true">Antes da adoção</button><button id="m-post" aria-pressed="false">Auditoria pós-implantação</button></div>
+    <button class="btn sm" id="load-demo" style="background:var(--bg);color:var(--ink)">Carregar exemplo</button>
+    <button class="btn sm" id="reset" style="background:var(--bg);color:var(--ink)">Limpar</button>
+  </div>
+</div>
+
+<div class="shell">
+  <nav class="rail" id="rail" aria-label="Etapas"></nav>
+  <main class="pane" id="pane"></main>
+</div>
+<footer><b>ELO</b> — instrumento de apoio à decisão desenvolvido por Thiago F. Lima e Claudia A. S. Araujo (COPPEAD/UFRJ) a partir de pesquisa em andamento. Protótipo: o framework de seis condições ainda não foi validado em implementações prospectivas; o instrumento apoia o diagnóstico, não prevê retorno do investimento. Dimensões de desempenho: PATH (Veillard et al., 2005).</footer>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const APPS={admin:"Automação administrativa",case:"Priorização de casos e alerta precoce",flow:"Fluxo de pacientes e gestão de leitos",demand:"Previsão de demanda e agendamento",img:"Apoio em imagem e perioperatório",dsa:"Apoio à decisão de internação",coord:"Coordenação, seguimento e busca de informação",sched:"Escalas de trabalho e gestão da força de trabalho",supply:"Cadeia de suprimentos hospitalar",other:"Outra"};
+const DIMS={PE:"Eficiência produtiva",SO:"Orientação para a equipe",PC:"Centralidade no paciente",RG:"Governança responsiva",OS:"Segurança organizacional"};
+const DIMEX={PE:"Tempo de permanência, ocupação e giro de leitos, produtividade, custo por paciente, tempo de laudo, tempo de documentação",SO:"Escalas, dimensionamento, carga de trabalho, horas extras, rotatividade, exaustão",PC:"Tempo de espera, agendamento, absenteísmo, acesso, experiência do paciente",RG:"Decisão gerencial, planejamento, coordenação entre setores, seguimento",OS:"Eventos adversos atribuíveis a falha de processo de gestão"};
+const LV={L:"Baixa",M:"Média",H:"Alta"};
+const BASE={admin:1,case:1,flow:1,demand:1,img:1,dsa:1,coord:1,sched:0,supply:0,other:null};
+const APPNOTE={sched:"A base da revisão não identificou estudos elegíveis nesta categoria.",supply:"A base da revisão não identificou estudos elegíveis nesta categoria.",other:"Categoria sem correspondência na base. A base de evidências precisa ser levantada à parte."};
+
+/* ---- estado ---- */
+const EVT={metric:"Métrica de modelo (AUROC, acurácia, sensibilidade)",sim:"Simulação ou otimização sobre dados históricos",obs:"Resultado organizacional observado após implementação",perc:"Percepção ou autorrelato de usuários",clin:"Desfecho clínico",none:"Nenhuma evidência apresentada"};
+const EVSRC={vendor:"Fornecedor",indep:"Publicação independente",own:"Piloto interno",other:"Outra"};
+const blank=()=>({mode:"ante",sol:{name:"",app:"",vendor:"",proc:"",desc:""},ev:[],st:{0:{a:null,note:""},1:{a:null,c:[0,0,0],note:""},2:{a:null,c:[0,0,0],note:""},3:{a:null,c:[0,0,0],note:""},4:{a:null,dim:"",ind:"",src:"",base:"",obj:"",note:""},5:{a:null,t:{dep:"",dis:"",ver:""},note:""}}});
+let st=blank();
+try{const s=localStorage.getItem("elo-v1");if(s)st=Object.assign(blank(),JSON.parse(s));}catch(e){}
+function save(){try{localStorage.setItem("elo-v1",JSON.stringify(st));}catch(e){}}
+let cur=0;
+const DEMO={mode:"post",sol:{name:"Modelo de predição de absenteísmo em exames de imagem (caso ilustrativo)",app:"demand",vendor:"Desenvolvimento interno (hospital fictício)",proc:"Agendamento de exames de imagem; telefonema aos pacientes classificados como prováveis faltosos",desc:"Modelo de aprendizado de máquina treinado em dados históricos de agendamento. Caso fictício, construído para ilustrar o instrumento."},
+ ev:[{t:"metric",s:"own",d:"AUROC 0,70 no desenvolvimento",l:"n"},{t:"obs",s:"own",d:"Absenteísmo sem diferença estatística em relação ao grupo controle",l:"n"},{t:"metric",s:"own",d:"AUROC em queda no período prospectivo (deriva dos dados)",l:"n"}],
+ st:{0:{a:"yes",note:"Há estudo publicado com a mesma aplicação e a mesma ação, com queda do absenteísmo."},1:{a:"partly",c:[1,1,0],note:"Discriminação modesta e em queda, mas operacional."},2:{a:"yes",c:[1,1,1],note:"A lista de pacientes selecionados chega à central de agendamento diariamente."},3:{a:"no",c:[1,0,0],note:"Grande parte dos pacientes selecionados não foi alcançada por telefone. Não havia pessoal adicional para as ligações."},4:{a:"yes",dim:"PE",ind:"Taxa de absenteísmo em exames de imagem",src:"Sistema de agendamento (RIS)",base:"Grupo controle concorrente",obj:"yes",note:""},5:{a:"partly",t:{dep:"Não se aplica: os não selecionados seguem o fluxo normal.",dis:"Tempo da central de agendamento para as ligações, não contabilizado.",ver:"Não se aplica: não há conteúdo gerado."},note:""}}};
+
+/* ---- derivados ---- */
+const SN=["Base de evidências","Capacidade técnica em operação","Integração ao fluxo de trabalho","Tradução em ação","Resultado organizacional","Valor líquido"];
+const SQ=["Esse tipo de aplicação já produziu resultados medidos em um hospital real?","O modelo continua performando quando roda na rotina deste hospital?","O resultado chega a quem decide enquanto a decisão ainda está em aberto?","Quando o resultado chega, há alguém capaz de interpretá-lo e agir sobre ele?","Que indicador de gestão deve mudar, e como será medido sem depender de opinião?","Quanto custará o ganho, e quem arcará com esse custo?"];
+const SC={1:["Desempenho medido com dados locais, não com o conjunto de desenvolvimento","Desempenho medido no limiar efetivamente em uso","Contados apenas os alertas que chegam antes de a equipe perceber por conta própria"],2:["Está definido quem recebe o resultado","Está definido em que etapa do fluxo o resultado aparece","Há medida de uso efetivo (taxa de adoção, acessos, resposta aos alertas)"],3:["Há um dono nomeado para a ação recomendada","Os recursos e dependências da ação estão disponíveis (pessoal, leitos, equipamento)","A capacidade da unidade de absorver a ação foi verificada"]};
+const SF={0:"Muitos estudos de modelagem sem implementação medida em hospital real. Resultados divergentes dentro da mesma categoria.",1:"Desempenho relatado antes da implementação não reproduzido na rotina: sensibilidade informada pelo fornecedor muito abaixo quando contados só os alertas úteis; economia de tempo obtida em laboratório reduzida em condições reais de clínica.",2:"Resultado ignorado pela maior parte da equipe, ou chegando depois de a decisão já ter sido tomada.",3:"Casos corretamente identificados sem capacidade de agir: pacientes selecionados não alcançados; ações dependentes de recurso indisponível (leito, pessoal) não aceleradas.",4:"Efeito concentrado numa única dimensão e ganhos percebidos não confirmados por medida objetiva.",5:"Ganhos compensados por trabalho deslocado para outros horários ou pessoas e pelo esforço de verificar conteúdo gerado."};
+const ans=i=>st.st[i].a;
+function evSummary(){const c={metric:0,sim:0,obs:0,perc:0,clin:0,none:0};let vendorLinked=0;st.ev.forEach(e=>{c[e.t]=(c[e.t]||0)+1;if(e.l==="y")vendorLinked++;});return{c,vendorLinked,n:st.ev.length};}
+function base(){const k=st.sol.app;return{has:!!BASE[k]};}
+function suggest0(){const k=st.sol.app;if(!k)return null;if(k==="sched"||k==="supply"||k==="other")return "no";return base().has?"yes":"no";}
+function verdict(){
+  const a=[0,1,2,3,4,5].map(ans);
+  const brk=a.indexOf("no");
+  const unk=a.map((x,i)=>x==="unk"||x===null?i:null).filter(x=>x!==null);
+  const part=a.map((x,i)=>x==="partly"?i:null).filter(x=>x!==null);
+  if(a.every(x=>!x))return{k:"empty",t:"Diagnóstico não iniciado",d:"Responda às seis condições. Cada uma é necessária; nenhuma é suficiente sozinha."};
+  if(brk>-1)return{k:"break",t:`A cadeia se rompe na condição ${brk}: ${SN[brk]}`,d:SF[brk]+(st.mode==="ante"?" Nesta condição a organização ainda controla a decisão: corrija o elo antes de adotar, ou a capacidade técnica não se converterá em resultado.":" O diagnóstico localiza a falha neste elo, e não no modelo nem na decisão de agir. Avaliação centrada no modelo não faria essa distinção."),brk,unk,part};
+  if(unk.length)return{k:"gap",t:`Nenhuma ruptura encontrada, mas ${unk.length} condição${unk.length>1?"ões":""} sem resposta ou sem medida`,d:"Condições sem medida: "+unk.map(i=>`${i} · ${SN[i]}`).join("; ")+". São justamente as medidas que a literatura de implementação costuma deixar de relatar. Sem elas, o diagnóstico não distingue sucesso de fracasso.",unk,part};
+  if(part.length)return{k:"gap",t:"A cadeia se sustenta, com elos fracos",d:"Atendidas em parte: "+part.map(i=>`${i} · ${SN[i]}`).join("; ")+". Monitore esses elos após a entrada em operação e registre as medidas correspondentes.",part};
+  return{k:"ok",t:"As seis condições foram atendidas",d:"A organização controla cada elo. Mantenha a auditoria após a adoção, com comparador concorrente e medida objetiva."};
+}
+
+/* ---- rail ---- */
+const STEPS=[{k:"ID",t:"Solução avaliada",s:"identificação"},{k:"EV",t:"Evidência recebida",s:"classificador"},{k:"0",t:SN[0],s:"condição 0"},{k:"1",t:SN[1],s:"condição 1"},{k:"2",t:SN[2],s:"condição 2"},{k:"3",t:SN[3],s:"condição 3"},{k:"4",t:SN[4],s:"condição 4 · PATH"},{k:"5",t:SN[5],s:"condição 5 · trade-offs"},{k:"R",t:"Relatório",s:"veredito"}];
+function renderRail(){
+  $("#rail").innerHTML=STEPS.map((s,i)=>{let cls="step";if(i>=2&&i<=7){const a=ans(i-2);cls+=a?" "+a:"";}return `<button class="${cls}" aria-current="${i===cur}" data-i="${i}"><span class="k">${s.k}</span><span><span class="t">${s.t}</span><br><span class="s">${s.s}</span></span></button>${i===1||i===7?'<div class="sep"></div>':''}`}).join("");
+  $("#solname").innerHTML=`<b>${esc(st.sol.name||"Novo diagnóstico")}</b>${st.sol.app?` · ${APPS[st.sol.app]}`:""}`;
+  $("#m-ante").setAttribute("aria-pressed",st.mode==="ante");$("#m-post").setAttribute("aria-pressed",st.mode==="post");
+}
+$("#rail").addEventListener("click",e=>{const b=e.target.closest("[data-i]");if(b){cur=+b.dataset.i;render();}});
+$("#m-ante").onclick=()=>{st.mode="ante";save();render();};
+$("#m-post").onclick=()=>{st.mode="post";save();render();};
+$("#reset").onclick=()=>{st=blank();cur=0;save();render();};
+$("#load-demo").onclick=()=>{st=JSON.parse(JSON.stringify(DEMO));cur=0;save();render();};
+
+/* ---- telas ---- */
+const segHtml=(i,val)=>`<div class="seg" data-seg="${i}">${[["yes","Sim"],["partly","Em parte"],["no","Não"],["unk",st.mode==="ante"?"Não sei / não verificado":"Não medido"]].map(v=>`<button type="button" data-v="${v[0]}" aria-pressed="${val===v[0]}">${v[1]}</button>`).join("")}</div>`;
+const nav=(prev,next)=>`<div class="navbar">${prev!==null?`<button class="btn" data-go="${prev}">‹ Anterior</button>`:"<span></span>"}${next!==null?`<button class="btn primary" data-go="${next}">${next===8?"Ver relatório":"Próxima"} ›</button>`:""}</div>`;
+const modeTxt=()=>st.mode==="ante"?"antes da adoção":"na auditoria pós-implantação";
+
+const screens={
+ 0(){return `<div class="eyebrow">Identificação</div><h2>Que solução está sendo avaliada?</h2><p class="intro">Descreva a solução e o processo de gestão que ela afeta. O tipo de aplicação define a base de evidências que o instrumento consulta na condição 0. <span class="demo">Para ver o instrumento preenchido, use "Carregar exemplo" no topo (caso ilustrativo, fictício).</span></p>
+ <div class="card"><div class="row"><div class="field"><label class="lbl" for="f-name">Nome da solução</label><input id="f-name" data-k="sol.name" value="${esc(st.sol.name)}" placeholder="Ex.: Score de risco de reinternação"></div><div class="field"><label class="lbl" for="f-vendor">Fornecedor ou desenvolvedor</label><input id="f-vendor" data-k="sol.vendor" value="${esc(st.sol.vendor)}" placeholder="Ex.: empresa X / desenvolvimento interno"></div></div>
+ <div class="field"><label class="lbl" for="f-app">Tipo de aplicação (função gerencial)</label><select id="f-app" data-k="sol.app"><option value="">Selecione</option>${Object.entries(APPS).map(([k,v])=>`<option value="${k}" ${st.sol.app===k?"selected":""}>${v}</option>`).join("")}</select></div>
+ <div class="field"><label class="lbl" for="f-proc">Processo de gestão afetado e ação que o resultado dispara</label><input id="f-proc" data-k="sol.proc" value="${esc(st.sol.proc)}" placeholder="Ex.: planejamento de alta; a equipe de fluxo prioriza os pacientes sinalizados"></div>
+ <div class="field"><label class="lbl" for="f-desc">Descrição técnica (técnica, dados, modo de operação)</label><textarea id="f-desc" data-k="sol.desc" placeholder="Ex.: random forest sobre dados do prontuário, recalculado a cada hora; alerta no painel da enfermaria">${esc(st.sol.desc)}</textarea></div>
+ <div class="callout"><b>Escopo do instrumento.</b> Aplica-se a sistemas cuja lógica de decisão é aprendida a partir de dados (aprendizado de máquina, aprendizado profundo, PLN, modelos de linguagem). Sistemas de otimização ou automação com regras inteiramente especificadas por humanos ficam fora, mesmo quando rotulados como IA.</div></div>${nav(null,1)}`;},
+ 1(){const sm=evSummary();const modelOnly=sm.c.metric+sm.c.sim;return `<div class="eyebrow">Classificador da evidência</div><h2>O que o gestor recebeu como prova de valor?</h2><p class="intro">Liste cada evidência apresentada pelo fornecedor, pela literatura ou por um piloto interno. O instrumento separa o que mede o algoritmo do que mede a organização. Grande parte da literatura sobre IA em hospitais nunca sai da métrica do modelo ou da simulação.</p>
+ <div class="card"><div class="evlist" id="evlist">${st.ev.map((e,i)=>`<div class="ev"><input data-ev="${i}" data-f="d" value="${esc(e.d)}" placeholder="Descrição (ex.: AUROC 0,89 em validação retrospectiva)"><select data-ev="${i}" data-f="t">${Object.entries(EVT).map(([k,v])=>`<option value="${k}" ${e.t===k?"selected":""}>${v}</option>`).join("")}</select><select data-ev="${i}" data-f="s" aria-label="Fonte">${Object.entries(EVSRC).map(([k,v])=>`<option value="${k}" ${e.s===k?"selected":""}>${v}</option>`).join("")}</select><select data-ev="${i}" data-f="l" aria-label="Vínculo com fornecedor"><option value="n" ${e.l!=="y"?"selected":""}>Autor sem vínculo</option><option value="y" ${e.l==="y"?"selected":""}>Autor ligado ao fornecedor</option></select><button class="x" data-rm="${i}" aria-label="Remover">×</button></div>`).join("")||`<p class="demo">Nenhuma evidência registrada.</p>`}</div>
+ <div style="margin-top:10px"><button class="btn sm" id="ev-add">+ Adicionar evidência</button></div>
+ <div class="evsum num"><div class="${modelOnly?'bad':''}"><b>${modelOnly}</b><span>param no modelo ou na simulação</span></div><div class="${sm.c.obs?'good':''}"><b>${sm.c.obs}</b><span>resultado organizacional observado</span></div><div><b>${sm.c.perc+sm.c.clin}</b><span>percepção ou desfecho clínico</span></div><div class="${sm.vendorLinked?'bad':''}"><b>${sm.vendorLinked}</b><span>com autor ligado ao fornecedor</span></div></div>
+ ${sm.n&&!sm.c.obs?`<div class="hint"><b>Sinal de alerta.</b> Nenhuma das evidências mede o efeito na organização. Métricas de modelo e simulações não permitem inferir resultado de gestão: onde ambos foram medidos, o desempenho técnico superestimou o efeito organizacional.</div>`:""}
+ ${sm.c.obs&&sm.vendorLinked===sm.n&&sm.n?`<div class="hint"><b>Atenção.</b> Toda a evidência vem de autores ligados ao fornecedor. O resultado não é inválido, mas a confiança deve ser calibrada.</div>`:""}
+ ${sm.c.perc?`<div class="hint"><b>Percepção não substitui medida.</b> Onde percepção e medida objetiva foram coletadas no mesmo estudo, divergiram.</div>`:""}
+ </div>${nav(0,2)}`;},
+ 2(){const k=st.sol.app;const b=base();const sug=suggest0();const a=ans(0);return `<div class="eyebrow">Condição 0</div><h2>${SQ[0]}</h2><p class="intro">A resposta parte de uma base de estudos publicados que implementaram IA em hospitais reais e mediram um resultado de gestão, organizados por tipo de aplicação. Ajuste a resposta com a evidência adicional que tiver.</p>
+ <div class="card"><h3>${k?APPS[k]:"Selecione o tipo de aplicação na identificação"}</h3>
+ ${k&&b.has?`<p class="demo" style="margin-bottom:10px">A base da revisão identificou estudos com implementação real e resultado de gestão medido nesta categoria. A lista dos estudos será disponibilizada com a publicação do artigo.</p>`:k?`<p>${APPNOTE[k]||"Nenhum estudo identificado nesta categoria."}</p>`:""}
+ <div class="callout"><b>Ao ler os estudos, verifique:</b> se o resultado foi medido após implementação real (e não em simulação); se houve grupo de comparação concorrente; se os resultados são convergentes entre os estudos da mesma categoria; e se os autores têm vínculo com o fornecedor.</div>
+ <div style="margin-top:16px"><span class="lbl">Resposta à condição 0${sug?` · sugerida pela base: <b>${{yes:"Sim",partly:"Em parte",no:"Não"}[sug]}</b>`:""}</span>${segHtml(0,a)}</div>
+ <div class="field" style="margin-top:12px"><label class="lbl" for="n0">Evidência adicional ou observações</label><textarea id="n0" data-note="0">${esc(st.st[0].note)}</textarea></div></div>${nav(1,3)}`;},
+ 3(){return chainScreen(1,2,4);},4(){return chainScreen(2,3,5);},5(){return chainScreen(3,4,6);},
+ 6(){const s=st.st[4];return `<div class="eyebrow">Condição 4 · dimensões PATH</div><h2>${SQ[4]}</h2><p class="intro">Escolha a dimensão de desempenho hospitalar (PATH, OMS Europa) e o indicador. A literatura mede sobretudo eficiência produtiva, e quase nada em governança e segurança. Indicador, fonte e linha de base precisam existir ${modeTxt()}.</p>
+ <div class="card"><div class="row"><div class="field"><label class="lbl" for="f-dim">Dimensão PATH</label><select id="f-dim" data-st4="dim"><option value="">Selecione</option>${Object.entries(DIMS).map(([k,v])=>`<option value="${k}" ${s.dim===k?"selected":""}>${v}</option>`).join("")}</select>${s.dim?`<span class="demo">Exemplos: ${DIMEX[s.dim]}</span>`:""}</div><div class="field"><label class="lbl" for="f-ind">Indicador que deve mudar</label><input id="f-ind" data-st4="ind" value="${esc(s.ind)}" placeholder="Ex.: mediana do tempo de permanência na emergência"></div></div>
+ <div class="row"><div class="field"><label class="lbl" for="f-src">Fonte dos dados</label><input id="f-src" data-st4="src" value="${esc(s.src)}" placeholder="Ex.: prontuário eletrônico, logs do sistema"></div><div class="field"><label class="lbl" for="f-base">Linha de base e comparador</label><input id="f-base" data-st4="base" value="${esc(s.base)}" placeholder="Ex.: 190 min nos 6 meses anteriores; grupo concorrente"></div></div>
+ <div class="field"><span class="lbl">A medida é objetiva (registro, log, contagem), e não autorrelato?</span><div class="seg" data-obj><button type="button" data-v="yes" aria-pressed="${s.obj==="yes"}">Objetiva</button><button type="button" data-v="no" aria-pressed="${s.obj==="no"}">Autorrelato ou percepção</button></div></div>
+ ${s.obj==="no"?`<div class="hint"><b>Percepção diverge da medida.</b> Na literatura, economias de tempo relatadas pelos usuários não foram confirmadas pelos registros do sistema. Prefira um indicador registrado automaticamente.</div>`:""}
+ ${s.base&&!/concorrente|controle|aleat|random/i.test(s.base)?`<div class="callout"><b>Comparador.</b> Sem grupo concorrente, o efeito se confunde com a tendência secular. Se possível, compare também com a solução organizacional já existente, não só com a ausência de solução.</div>`:""}
+ <div style="margin-top:14px"><span class="lbl">Resposta à condição 4</span>${segHtml(4,s.a)}</div><div class="field" style="margin-top:12px"><label class="lbl" for="n4">Observações</label><textarea id="n4" data-note="4">${esc(s.note)}</textarea></div></div>${nav(5,7)}`;},
+ 7(){const s=st.st[5];const f=(k,l,ph)=>`<div class="field"><label class="lbl" for="t-${k}">${l}</label><textarea id="t-${k}" data-st5="${k}" placeholder="${ph}">${esc(s.t[k])}</textarea></div>`;return `<div class="eyebrow">Condição 5 · trade-offs</div><h2>${SQ[5]}</h2><p class="intro">Os ganhos observados na literatura frequentemente realocam um recurso fixo. Registre quem paga pelo ganho, mesmo que a resposta seja "não se aplica".</p>
+ <div class="card">${f("dep","Pacientes ou casos despriorizados","Ex.: exames normais passam a esperar mais quando os anormais são priorizados")}${f("dis","Trabalho deslocado para outros horários ou pessoas","Ex.: ligações extras na central; documentação após o plantão")}${f("ver","Esforço de verificar o conteúdo gerado","Ex.: revisão obrigatória de resumos; taxa de erro esperada e quem a audita")}
+ <div style="margin-top:6px"><span class="lbl">Resposta à condição 5 (o custo foi identificado e será medido?)</span>${segHtml(5,s.a)}</div><div class="field" style="margin-top:12px"><label class="lbl" for="n5">Observações</label><textarea id="n5" data-note="5">${esc(s.note)}</textarea></div></div>${nav(6,8)}`;},
+ 8(){const v=verdict();const a=[0,1,2,3,4,5].map(ans);const brk=a.indexOf("no");const sm=evSummary();return `<div class="eyebrow">Relatório · ${st.mode==="ante"?"diagnóstico antes da adoção":"auditoria pós-implantação"}</div><h2>${esc(st.sol.name||"Solução não identificada")}</h2><p class="intro">${st.sol.app?APPS[st.sol.app]:""}${st.sol.vendor?` · ${esc(st.sol.vendor)}`:""}</p>
+ <div class="verdict ${v.k}"><div class="eyebrow">Veredito</div><h3>${v.t}</h3><p>${v.d}</p>
+ <div class="chain">${SN.map((n,i)=>`<div class="${a[i]||'unk'} ${brk>-1&&i>brk?'after':''}"><b>${i}</b>${n}<span class="demo">${{yes:"sim",partly:"em parte",no:"não",unk:"não medido"}[a[i]]||"sem resposta"}</span></div>`).join("")}</div></div>
+ <div class="card"><h3>Evidência recebida</h3><p>${sm.n} item(ns): ${sm.c.metric+sm.c.sim} param no modelo ou na simulação, ${sm.c.obs} com resultado organizacional observado, ${sm.c.perc} de percepção, ${sm.c.clin} clínico(s). ${sm.vendorLinked} com autor ligado ao fornecedor.</p></div>
+ <div class="card"><h3>Medidas que faltam</h3>${missing().length?`<ul>${missing().map(m=>`<li>${m}</li>`).join("")}</ul>`:"<p>Nenhuma lacuna de medida identificada.</p>"}</div>
+ <div class="card"><h3>Texto do relatório</h3><p class="demo" style="margin-bottom:8px">Para colar no parecer ou na ata de decisão.</p><div class="rep" id="rep">${esc(reportText())}</div><div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="copy">Copiar relatório</button><span class="flash" id="copied"></span></div></div>${nav(7,null)}`;}
+};
+function chainScreen(i,prev,next){const s=st.st[i];return `<div class="eyebrow">Condição ${i} · ${i===1?"a ferramenta":i===2?"capacidade organizacional 1":"capacidade organizacional 2"}</div><h2>${SQ[i]}</h2><p class="intro">${i===1?"O desempenho que importa é o medido na rotina deste hospital, no limiar em uso, contando só os alertas que chegam antes de a equipe perceber.":i===2?"Integração ao fluxo: quem recebe o resultado, em que momento e se é de fato usado. Adoção e momento foram os dois mecanismos de falha observados aqui.":"Tradução em ação: dono, recursos e capacidade da unidade. Alcance e barreira de execução foram os mecanismos de falha observados aqui."}</p>
+ <div class="card"><span class="lbl">Verificações ${modeTxt()}</span><div class="checks">${SC[i].map((c,j)=>`<label><input type="checkbox" data-chk="${i}" data-j="${j}" ${s.c[j]?"checked":""}>${c}</label>`).join("")}</div>
+ <span class="lbl">Resposta à condição ${i}</span>${segHtml(i,s.a)}
+ <div class="hint" style="margin-top:14px"><b>Sinal de falha observado na literatura.</b> ${SF[i]}</div>
+ <div class="field" style="margin-top:12px"><label class="lbl" for="n${i}">Evidência e observações</label><textarea id="n${i}" data-note="${i}" placeholder="O que foi verificado, com que dado">${esc(s.note)}</textarea></div></div>${nav(prev,next)}`;}
+function missing(){const m=[];const a=[0,1,2,3,4,5].map(ans);const sm=evSummary();if(!sm.c.obs)m.push("Resultado organizacional observado para esta solução (só há métricas de modelo, simulação ou percepção).");if(a[1]!=="yes"&&!st.st[1].c[0])m.push("Desempenho do modelo com dados locais e no limiar em uso.");if(!st.st[1].c[2])m.push("Sensibilidade contando apenas os alertas anteriores ao reconhecimento clínico.");if(!st.st[2].c[2])m.push("Taxa de uso efetivo pela equipe (adoção).");if(!st.st[3].c[1])m.push("Disponibilidade dos recursos exigidos pela ação (taxa de contato, leitos, pessoal).");if(!st.st[4].ind)m.push("Indicador de gestão definido na dimensão PATH.");if(!st.st[4].base)m.push("Linha de base e comparador, de preferência concorrente.");if(st.st[4].obj==="no")m.push("Medida objetiva em lugar de autorrelato.");if(!st.st[5].t.dis&&!st.st[5].t.dep&&!st.st[5].t.ver)m.push("Registro dos trade-offs (despriorizados, trabalho deslocado, verificação).");a.forEach((x,i)=>{if(x==="unk")m.push(`Condição ${i} (${SN[i]}) não verificada.`);});return m;}
+function reportText(){const v=verdict();const a=[0,1,2,3,4,5].map(ans);const sm=evSummary();const L={yes:"Sim",partly:"Em parte",no:"Não",unk:"Não medido"};return `ELO · DIAGNÓSTICO DE IMPLEMENTAÇÃO DE IA · ${st.mode==="ante"?"ANTES DA ADOÇÃO":"AUDITORIA PÓS-IMPLANTAÇÃO"}
+Solução: ${st.sol.name||"—"}
+Tipo de aplicação: ${st.sol.app?APPS[st.sol.app]:"—"}
+Fornecedor: ${st.sol.vendor||"—"}
+Processo e ação: ${st.sol.proc||"—"}
+
+VEREDITO: ${v.t}
+${v.d}
+
+CADEIA DE CONDIÇÕES
+${SN.map((n,i)=>`${i}. ${n}: ${L[a[i]]||"sem resposta"}${st.st[i].note?` — ${st.st[i].note}`:""}`).join("\n")}
+
+EVIDÊNCIA RECEBIDA (${sm.n})
+${st.ev.map(e=>`- [${EVT[e.t]}] ${e.d||"—"} (${EVSRC[e.s]}${e.l==="y"?", autor ligado ao fornecedor":""})`).join("\n")||"- nenhuma"}
+
+RESULTADO ESPERADO (PATH)
+Dimensão: ${st.st[4].dim?DIMS[st.st[4].dim]:"—"} · Indicador: ${st.st[4].ind||"—"}
+Fonte: ${st.st[4].src||"—"} · Linha de base/comparador: ${st.st[4].base||"—"} · Medida: ${st.st[4].obj==="yes"?"objetiva":st.st[4].obj==="no"?"autorrelato":"—"}
+
+TRADE-OFFS
+Despriorizados: ${st.st[5].t.dep||"—"}
+Trabalho deslocado: ${st.st[5].t.dis||"—"}
+Verificação: ${st.st[5].t.ver||"—"}
+
+MEDIDAS QUE FALTAM
+${missing().map(m=>"- "+m).join("\n")||"- nenhuma"}
+
+ELO — Lima & Araujo (COPPEAD/UFRJ). Framework de seis condições, não validado prospectivamente; dimensões PATH (Veillard et al., 2005).`;}
+
+function render(){renderRail();$("#pane").innerHTML=screens[cur]();window.scrollTo({top:0});}
+/* ---- eventos delegados ---- */
+const pane=$("#pane");
+pane.addEventListener("input",e=>{const t=e.target;if(t.dataset.k){const [a,b]=t.dataset.k.split(".");st[a][b]=t.value;if(b==="app"){const s=suggest0();if(s&&!st.st[0].a)st.st[0].a=s;}save();renderRail();if(b==="app"&&cur===0)return;}
+ if(t.dataset.note!==undefined){st.st[t.dataset.note].note=t.value;save();}
+ if(t.dataset.ev!==undefined){st.ev[+t.dataset.ev][t.dataset.f]=t.value;save();if(t.tagName==="SELECT")render();}
+ if(t.dataset.st4){st.st[4][t.dataset.st4]=t.value;save();if(t.tagName==="SELECT")render();}
+ if(t.dataset.st5){st.st[5].t[t.dataset.st5]=t.value;save();}});
+pane.addEventListener("change",e=>{const t=e.target;if(t.dataset.chk){st.st[t.dataset.chk].c[+t.dataset.j]=t.checked?1:0;save();}if(t.dataset.k==="sol.app")render();});
+pane.addEventListener("click",e=>{
+ const g=e.target.closest("[data-go]");if(g){cur=+g.dataset.go;render();return;}
+ const sg=e.target.closest(".seg[data-seg] button");if(sg){st.st[+sg.closest(".seg").dataset.seg].a=sg.dataset.v;save();render();return;}
+ const ob=e.target.closest(".seg[data-obj] button");if(ob){st.st[4].obj=ob.dataset.v;save();render();return;}
+ if(e.target.id==="ev-add"){st.ev.push({t:"metric",s:"vendor",d:"",l:"n"});save();render();setTimeout(()=>{const l=$$("#evlist input");l[l.length-1]?.focus();},0);return;}
+ const rm=e.target.closest("[data-rm]");if(rm){st.ev.splice(+rm.dataset.rm,1);save();render();return;}
+ if(e.target.id==="copy"){const txt=reportText();const done=()=>{$("#copied").textContent="Copiado.";setTimeout(()=>{const c=$("#copied");if(c)c.textContent="";},2000);};navigator.clipboard?.writeText(txt).then(done).catch(()=>{const r=document.createRange();r.selectNodeContents($("#rep"));const s=getSelection();s.removeAllRanges();s.addRange(r);$("#copied").textContent="Texto selecionado: use Ctrl+C.";});}
+});
+render();
+})();
+</script>
+
+</body>
+</html>
